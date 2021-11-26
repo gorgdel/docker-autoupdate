@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Docker Variables
+containerid=$(docker ps -qf "name=vaultwarden")
+imageid=$(docker images -q vaultwarden/server)
+dockerversion=1.
+
+# Stop/RM Image
+docker stop $containerid
+docker rm $containerid
+docker rmi $imageid
+
+# Pull New Version
+docker pull vaultwarden/server:$dockerversion
+
+# Run New Version
+docker run -d --name vaultwarden -v /vw-data/:/data/ -p 80:80 vaultwarden/server:$dockerversion

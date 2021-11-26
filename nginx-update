@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Check if root
+user=$(whoami)
+if [[ "$user" != "root" ]];
+then
+    echo "Error: Must be run as root"
+    exit
+fi
+
+# Docker Variables
+containerid=$(docker ps -qf "name=nginx")
+imageid=$(docker images -q jc21/nginx-proxy-manager)
+
+# Stop/RM Image
+docker stop $containerid
+docker rm $containerid
+docker rmi $imageid
+
+
+# Move Dirs
+cd /opt/nginxproxymanager
+
+# Pull New Version
+docker-compose pull
+
+# Run New Version
+docker-compose up -d

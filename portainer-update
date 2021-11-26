@@ -1,0 +1,18 @@
+#!/bin/bash
+
+
+# Docker Variables
+containerid=$(docker ps -qf "name=portainer")
+imageid=$(docker images -q portainer/portainer-ce)
+dockerversion=4.0
+
+# Stop/RM Image
+docker stop $containerid
+docker rm $containerid
+docker rmi $imageid
+
+# Pull New Version
+docker pull portainer/portainer-ce:$dockerversion
+
+# Run New Version
+docker run -d -p 8000:8000 -p 9000:9000 --name=portainer --restart=no -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:$dockerversion
