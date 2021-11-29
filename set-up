@@ -1,0 +1,329 @@
+#!/bin/bash
+
+# Check if root
+user=$(whoami)
+if [[ "$user" != "root" ]];
+then
+    echo "Error: Must be run as root"
+    exit
+fi
+
+# Crontab
+crontime="0 1 * * 4 root /bin/bash /scripts/automaticupdates"
+
+# This is what Grep looks for inside of crontime to see if it's there or not. It struggles to look for the entire thing due to (*) character, so this is the alternative.
+searchquery="automaticupdates"
+
+# Hostname
+hostname=$(hostname)
+
+# Github token - this token allows you to download "private" repos = https://github.com/settings/tokens
+gittoken="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"
+
+# Strings for email
+emailserver="set smtp=mailcleaner.gyc.intranet"
+fromaddress="set from="${hostname}@gyc.tas.edu.au""
+
+# Github Links (edit these to change where it pulls scripts from)
+adservers="https://$gittoken@raw.githubusercontent.com/GYCICT/Linux-Sensitive-Files/main/adjoin-server"
+adrise="https://$gittoken@raw.githubusercontent.com/GYCICT/Linux-Sensitive-Files/main/adjoin-rise"
+automaticupdates="https://raw.githubusercontent.com/gycict/Debian-Linux-Automatic-Updates/master/automaticupdates"
+gfilelocation=/root/githubfiles/docker-update-quick
+
+
+# Install Dependacies
+
+apt-get -qq update
+apt-get -y install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    bsd-mailx \
+    realmd \
+    ntp \
+    adcli \
+    sssd \
+    git \
+    libnss-sss \
+    libpam-sss \
+    packagekit \
+    libsss-sudo \
+    samba-common-bin \
+    sudo \
+    dialog
+
+clear
+
+# Create Scripts Directory
+
+if [ ! -d /scripts/ ]
+then
+    mkdir /scripts/
+    echo "Directory Created"
+else
+    echo "Directory /scripts/ Already Exists"
+fi
+
+# Check for Github Files
+
+if [ ! -d /root/githubfiles/ ]
+then
+    mkdir /root/githubfiles/
+    echo "Cloned and Moved Github files"
+else
+    echo "Directory /root/githubfiles/ Already Exists"
+fi
+
+# Clone github
+
+if [ ! -d /root/githubfiles/docker-update-quick ]
+then
+    cd /root/githubfiles/ || return
+    git clone https://github.com/GYCICT/docker-update-quick
+    echo "Cloned Docker-update-quick"
+else
+    echo "Directory /root/githubfiles/docker-update-quick Already Exists"
+fi
+
+# Create Scripts Directory
+
+if [ ! -d /scripts/docker-scripts ]
+then
+    mkdir /scripts/docker-scripts
+    echo "Directory Created"
+else
+    echo "Directory /scripts/docker-scripts Already Exists"
+fi
+
+sleep 3
+
+# Check for Mail settings
+
+if grep -q "$emailserver" /etc/mail.rc;
+then
+    echo 'exists'
+else
+    echo 'does not exist...adding'
+    echo "$emailserver" >> /etc/mail.rc
+    echo "$fromaddress" >> /etc/mail.rc
+    echo 'added...'
+fi
+
+
+
+# Submenu
+submenu () {
+    HEIGHT1=15
+    WIDTH1=40
+    CHOICE_HEIGHT1=4
+    TITLE1="Docker Update Install"
+    MENU1="Choose one of the following options:"
+
+    OPTIONS1=(1 "Portainer"
+        2 "Vaultwarden"
+    3 "Full Install")
+
+    CHOICE2=$(dialog --clear \
+            --backtitle "$BACKTITLE1" \
+            --title "$TITLE1" \
+            --menu "$MENU1" \
+            $HEIGHT1 $WIDTH1 $CHOICE_HEIGHT1 \
+            "${OPTIONS1[@]}" \
+        2>&1 >/dev/tty)
+
+    clear
+
+    case $CHOICE2 in
+
+      1) # Vaultwarden Updates
+
+        if [ ! -d /scripts/docker-scripts/vaultwarden ]
+          then
+          mv $gfilelocation/vaultwarden /scripts/docker-scripts
+        fi
+
+          if [ -f /etc/systemd/system/vw_update.service ]
+            then
+              echo "Disabling VW Service"
+              systemctl disable vw_update.service
+            fi
+
+          systemctl enable /scripts/docker-scripts/vaultwarden/vw_update.service
+          systemctl daemon-reload
+          systemctl start vw_update.service
+          systemctl status vw_update.service
+          sleep 3
+          echo "Installed VW Docker Updates"
+
+          ;;
+
+      2) # Portainer
+
+      if [ ! -d /scripts/docker-scripts/portainer ]
+      then
+        mv $gfilelocation/portainer /scripts/docker-scripts
+      fi
+
+          if [ -f /etc/systemd/system/port_update.service ]
+            then
+              echo "Disabling Portainer Service"
+              systemctl disable port_update.service
+            fi
+
+          systemctl enable /scripts/docker-scripts/portainer/port_update.service
+          systemctl daemon-reload
+          systemctl start port_update.service
+          systemctl status port_update.service
+          sleep 3
+          echo "Installed Portainer Docker Updates"
+
+          ;;
+
+      3)
+
+      if [ ! -d /scripts/docker-scripts/vaultwarden ]
+        then
+        mv $gfilelocation/vaultwarden /scripts/docker-scripts
+      fi
+
+        if [ -f /etc/systemd/system/vw_update.service ]
+          then
+            echo "Disabling VW Service"
+            systemctl disable vw_update.service
+          fi
+
+        systemctl enable /scripts/docker-scripts/vaultwarden/vw_update.service
+        systemctl daemon-reload
+        systemctl start vw_update.service
+        systemctl status vw_update.service
+        sleep 3
+        echo "Installed VW Docker Updates"
+
+        if [ ! -d /scripts/docker-scripts/portainer ]
+        then
+          mv $gfilelocation/portainer /scripts/docker-scripts
+        fi
+
+            if [ -f /etc/systemd/system/port_update.service ]
+              then
+                echo "Disabling Portainer Service"
+                systemctl disable port_update.service
+              fi
+
+            systemctl enable /scripts/docker-scripts/portainer/port_update.service
+            systemctl daemon-reload
+            systemctl start port_update.service
+            systemctl status port_update.service
+            sleep 3
+            echo "Installed Portainer Docker Updates"
+            ;;
+
+    esac
+}
+
+# Dialog
+
+HEIGHT=15
+WIDTH=40
+CHOICE_HEIGHT=4
+TITLE="Automatic Linux Installation"
+MENU="Choose one of the following options:
+Please Select Carefully"
+
+OPTIONS=(1 "AD-Join (Servers)"
+    2 "AD-Join (Rise)"
+    3 "Create Automatic Updates"
+    4 "Full Installation (Servers)"
+    5 "Full Installation (Rise)"
+6 "Docker Updates")
+
+CHOICE=$(dialog --clear \
+        --backtitle "$BACKTITLE" \
+        --title "$TITLE" \
+        --menu "$MENU" \
+        $HEIGHT $WIDTH $CHOICE_HEIGHT \
+        "${OPTIONS[@]}" \
+    2>&1 >/dev/tty)
+
+clear
+
+case $CHOICE in
+    1) #AD-Join (Servers)
+        curl -L "$adservers" --output /scripts/adjoin-server
+        bash /scripts/adjoin-server
+        ;;
+
+    2) #AD-Join (Rise)
+        curl -L "$adrise" --output /scripts/adjoin-rise
+        bash /scripts/adjoin-rise
+        ;;
+
+    3) #Create Autoatmic Updates
+        curl -L "$automaticupdates" --output /scripts/automaticupdates
+        chmod +x /scripts/automaticupdates
+
+        if grep -q "$searchquery" /etc/crontab;
+        then
+            echo 'exists'
+        else
+            echo 'does not exist...adding'
+            echo "$crontime" >> /etc/crontab
+            echo 'added...'
+        fi
+        ;;
+
+    4) #Full Installation (Servers)
+
+        echo "starting ad-join"
+        curl -L "$adservers" --output /scripts/adjoin-servers
+        bash /scripts/adjoin-servers
+        echo "Complete"
+        sleep 2
+        #Updates
+        echo "starting automatic-updates"
+        curl -L "$automaticupdates" --output /scripts/automaticupdates
+        chmod +x /scripts/automaticupdates
+
+        #Crontab
+        if grep -q "$searchquery" /etc/crontab;
+        then
+            echo 'exists'
+        else
+            echo 'does not exist...adding'
+            echo "$crontime" >> /etc/crontab
+            echo 'added...'
+        fi
+        ;;
+
+    5) #Full Installation (Rise)
+
+        echo "starting ad-join (rise)"
+        curl -L "$adrise" --output /scripts/adjoin-rise
+        bash /scripts/adjoin-rise
+        echo "Complete"
+        sleep 2
+
+
+        #Updates
+        echo "starting automatic-updates"
+        curl -L "$automaticupdates" --output /scripts/automaticupdates
+        chmod +x /scripts/automaticupdates
+
+        #Crontab
+        if grep -q "$searchquery" /etc/crontab;
+        then
+            echo 'exists'
+        else
+            echo 'does not exist...adding'
+            echo "$crontime" >> /etc/crontab
+            echo 'added...'
+        fi
+        ;;
+
+    6) #docker-scripts
+        submenu
+        ;;
+
+esac
